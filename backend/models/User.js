@@ -6,6 +6,9 @@ const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    // Two roles (brief requires exactly two): a debater can create/join/argue/vote;
+    // a moderator creates and officiates debates. Defaults to debater.
+    role: { type: String, enum: ['debater', 'moderator'], default: 'debater' },
     university: { type: String },
     address: { type: String },
 });
