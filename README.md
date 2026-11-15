@@ -42,6 +42,73 @@ to declare a winner.
 - **Database**: MongoDB installed **on the EC2 instance** (`mongodb://localhost:27017/debateapp`).
 - **CD**: GitHub Actions — on push to `main`, SSH into EC2, pull, build, `pm2 reload`.
 
+### Example GraphQL (debate domain)
+
+The debate API is served at `POST /graphql`. Mutations require a JWT (obtained from
+the REST `/api/auth/login` or `/register`) in the `Authorization: Bearer <token>` header.
+
+Create a debate (moderator only):
+
+```graphql
+mutation {
+  createDebate(motion: "Cats are better than dogs") {
+    id
+    motion
+    status        # "open"
+    creator { name }
+  }
+}
+```
+
+List and read debates (no auth required):
+
+```graphql
+query {
+  debates(status: "in-progress") {
+    id
+    motion
+    status
+    currentRound
+    currentSide
+    proposition { name }
+    opposition { name }
+  }
+}
+
+query {
+  debate(id: "<debateId>") {
+    motion
+    status
+    arguments { round side author { name } text }
+    voteTally { proposition opposition }
+    winner
+  }
+}
+```
+
+Join a debate, then submit an argument on your turn:
+
+```graphql
+mutation { joinDebate(id: "<debateId>") { status currentSide } }
+
+mutation {
+  submitArgument(id: "<debateId>", text: "My opening case…") {
+    currentRound
+    currentSide
+    status
+  }
+}
+```
+
+Example request with `curl` (token from `/api/auth/login`):
+
+```bash
+curl -X POST http://localhost:5001/graphql \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"query":"mutation { createDebate(motion:\"Pineapple belongs on pizza\") { id status } }"}'
+```
+
 ### AWS EC2 instance
 
 | Field | Value |
