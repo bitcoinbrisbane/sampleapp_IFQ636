@@ -1,0 +1,63 @@
+# Local development stack for DebateApp: MongoDB + backend (Express/GraphQL) + frontend (CRA).
+# Run:  docker compose up        (add --build after changing deps/Dockerfiles)
+# URLs: frontend http://localhost:3000 · GraphQL http://localhost:5001/graphql
+#       REST auth http://localhost:5001/api/auth · Mongo mongodb://localhost:27017
+services:
+  mongo:
+    image: mongo:7
+    container_name: debate-mongo-dev
+    restart: unless-stopped
+    ports:
+      # Host 27018 (27017 is often taken by another local Mongo); container stays 27017.
+      - "27018:27017"
+    volumes:
+      - mongo-data-dev:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ping:1})"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: debate-backend-dev
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: "5001"
+      # 'mongo' is the compose service name, resolvable on the compose network.
+      MONGO_URI: mongodb://mongo:27017/debateapp
+      JWT_SECRET: dev-local-secret-change-me
+      # Short per-turn time-box so debates can be demoed quickly in dev.
+      TURN_MS: "60000"
+    ports:
+      - "5001:5001"
+    volumes:
+      # Bind-mount source for hot-reload, but keep the container's node_modules.
+      - ./backend:/app
+      - /app/node_modules
+
+  frontend:
+    build: ./frontend
+    container_name: debate-frontend-dev
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # Browser (host) reaches the backend on localhost:5001.
+      REACT_APP_API_URL: http://localhost:5001
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      # Host 3001 (3000 is often taken); CRA dev server stays on 3000 in-container.
+      - "3001:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    stdin_open: true
+    tty: true
+
+volumes:
+  mongo-data-dev:
