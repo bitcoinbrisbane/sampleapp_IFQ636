@@ -108,6 +108,8 @@ const resolvers = {
     // --- CREATE ---
     createDebate: async (_p, { motion }, ctx) => {
       const user = requireAuth(ctx);
+      // The brief's create-debate story is a moderator action; only moderators may create.
+      if (user.role !== 'moderator') throw forbidden('Only a moderator can create a debate');
       if (!motion || !motion.trim()) throw badRequest('Motion is required');
       const debate = await Debate.create({
         motion: motion.trim(),
