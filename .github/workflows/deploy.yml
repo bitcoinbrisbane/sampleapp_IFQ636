@@ -1,0 +1,89 @@
+name: Deploy to EC2
+
+# Deploys on every push to main (after code is on main). The React app is built
+# here in CI (not on the 1 GB EC2 box), then the build + backend are shipped over
+# SSH and the backend is (re)started under PM2.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # --- Build the React frontend in CI ---
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci || npm install
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          CI: false
+          NODE_ENV: production
+        run: npm run build
+
+      # --- Prep backend (install prod deps to ship node_modules) ---
+      - name: Install backend prod deps
+        working-directory: backend
+        run: npm ci --omit=dev || npm install --omit=dev
+
+      # --- SSH / rsync setup ---
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # --- Ship the React build ---
+      - name: Deploy frontend build
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            frontend/build/ \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/debateapp/frontend-build/"
+
+      # --- Ship the backend (code + prod node_modules) ---
+      - name: Deploy backend
+        run: |
+          rsync -az --delete \
+            --exclude '.env' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            backend/ \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/debateapp/backend/"
+
+      - name: Ship PM2 ecosystem file
+        run: |
+          scp -i ~/.ssh/deploy_key ecosystem.config.js \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/debateapp/ecosystem.config.js"
+
+      # --- Write backend .env (secrets) and (re)start under PM2 ---
+      - name: Start/reload backend on EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" bash -s <<'EOSSH'
+          set -e
+          cat > /var/www/debateapp/backend/.env <<ENV
+          NODE_ENV=production
+          PORT=5001
+          MONGO_URI=mongodb://localhost:27017/debateapp
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          ENV
+          cd /var/www/debateapp
+          pm2 startOrReload ecosystem.config.js --update-env
+          pm2 save
+          EOSSH

@@ -44,7 +44,7 @@ to declare a winner.
 | Instance ID | `i-0ff37f4b83f53f928` |
 | OS / AMI | Ubuntu |
 | SSH user | `ubuntu` |
-| Public IPv4 | _TODO: fill in from console_ |
+| Public IPv4 | `3.106.191.138` |
 | Region | ap-southeast-2 (Sydney) |
 | Key pair | `lucas.pem` (kept locally outside the repo; **never committed**) |
 
@@ -69,33 +69,38 @@ it on localhost.
 
 `MONGO_URI` is not a secret — Mongo runs on the box: `mongodb://localhost:27017/debateapp`.
 
-### EC2 first-time setup (over SSH)
+### EC2 box setup (provisioned 2026-11-15)
+
+The box (Ubuntu 26.04 LTS, `t2.micro`) runs:
+
+- **Node 24** (NodeSource) + **PM2** — the Express backend.
+- **Nginx** — serves the React `build/` and reverse-proxies `/api` → Node :5001.
+- **Docker** → **MongoDB** in a container (`mongo:7`), bound to `127.0.0.1:27017`
+  only (not public), persistent `mongo-data` volume, `--restart unless-stopped`.
+- **2 GB swap** (safety on the 1 GB box). React is built in CI, not on the box.
+
+Mongo container (reference):
 
 ```bash
-# Node 24
-curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
-sudo apt-get install -y nodejs nginx
-
-# MongoDB — follow the official MongoDB apt repo steps for Ubuntu, then:
-sudo systemctl enable --now mongod
-
-# PM2 (process manager for the Node backend)
-sudo npm install -g pm2
-
-# App directory
-sudo mkdir -p /var/www/debateapp && sudo chown ubuntu:ubuntu /var/www/debateapp
+docker run -d --name debate-mongo --restart unless-stopped \
+  -p 127.0.0.1:27017:27017 -v mongo-data:/data/db mongo:7
 ```
+
+App directory: `/var/www/debateapp` (owned by `ubuntu`).
 
 ### Deploy checklist
 
-- [x] EC2 instance launched (`i-0ff37f4b83f53f928`, Ubuntu)
-- [ ] Public IP recorded; security group rules (22/80) set
-- [ ] SSH connection confirmed
-- [ ] Node 24 + Nginx + MongoDB + PM2 installed on box
-- [ ] GitHub Actions secrets created
-- [ ] CI workflow fixed (currently broken YAML, pinned to Node 14)
-- [ ] Deploy workflow added (SSH pull + build + `pm2 reload`)
-- [ ] App reachable at public URL
+- [x] EC2 instance launched (`i-0ff37f4b83f53f928`, Ubuntu 26.04)
+- [x] Public IP recorded; SG rules set (SSH 22 /32, HTTP 80, HTTPS 443)
+- [x] SSH connection confirmed
+- [x] Box provisioned: Node 24 + Nginx + Docker/MongoDB + PM2 + swap
+- [x] PM2 boot persistence enabled (`pm2-ubuntu.service`)
+- [x] Nginx site config + reverse proxy (`/` → build, `/api` → :5001)
+- [x] App reachable at public URL (placeholder page, HTTP 200)
+- [x] CI workflow fixed (`ci.yml`: Node 24, builds frontend, runs tests)
+- [x] Deploy workflow added (`deploy.yml`: build in CI → rsync → `pm2 reload`)
+- [ ] **GitHub Actions secrets created** (`EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`, `JWT_SECRET`) ← your step
+- [ ] First successful deploy (backend live, `/api` returns 200)
 
 ---
 

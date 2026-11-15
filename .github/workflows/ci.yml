@@ -1,28 +1,39 @@
 name: CI
 
 on:
-    push:
-        branches:
-            - main
-    pull_request:
-        branches:
-            - main
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-    build:
-        runs-on: ubuntu-latest
+  build-and-test:
+    runs-on: ubuntu-latest
 
-        steps:
-        - name: Checkout code
-            uses: actions/checkout@v2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        - name: Set up Node.js
-            uses: actions/setup-node@v2
-            with:
-                node-version: '14'
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
 
-        - name: Install dependencies
-            run: npm install
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci || npm install
 
-        - name: Run tests
-            run: npm test
+      - name: Run backend tests
+        working-directory: backend
+        # Don't fail the build if no tests exist yet; fail on real test failures.
+        run: npm test --if-present
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci || npm install
+
+      - name: Build frontend (production)
+        working-directory: frontend
+        env:
+          CI: false # treat CRA warnings as warnings, not errors
+        run: npm run build
