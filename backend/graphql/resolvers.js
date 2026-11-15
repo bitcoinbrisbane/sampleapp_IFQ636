@@ -70,14 +70,16 @@ const resolvers = {
   // Resolve ObjectId refs to User docs lazily.
   Debate: {
     id: (d) => d._id.toString(),
-    creator: (d) => User.findById(d.creator),
-    proposition: (d) => User.findById(d.proposition),
-    opposition: (d) => (d.opposition ? User.findById(d.opposition) : null),
+    // .exec() returns a fresh Promise each time; returning a bare Mongoose query
+    // can trip "Query was already executed" when the executor awaits it twice.
+    creator: (d) => User.findById(d.creator).exec(),
+    proposition: (d) => User.findById(d.proposition).exec(),
+    opposition: (d) => (d.opposition ? User.findById(d.opposition).exec() : null),
     voteTally: (d) => tally(d),
   },
   Argument: {
     id: (a) => a._id.toString(),
-    author: (a) => User.findById(a.author),
+    author: (a) => User.findById(a.author).exec(),
     createdAt: (a) => a.createdAt?.toISOString?.() ?? String(a.createdAt),
   },
   Vote: {
@@ -108,6 +110,8 @@ const resolvers = {
     // --- CREATE ---
     createDebate: async (_p, { motion }, ctx) => {
       const user = requireAuth(ctx);
+      // The brief's create-debate story is a moderator action; only moderators may create.
+      if (user.role !== 'moderator') throw forbidden('Only a moderator can create a debate');
       if (!motion || !motion.trim()) throw badRequest('Motion is required');
       const debate = await Debate.create({
         motion: motion.trim(),
