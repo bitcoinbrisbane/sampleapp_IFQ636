@@ -28,19 +28,19 @@ jobs:
       # --- Build the React frontend in CI ---
       - name: Install frontend deps
         working-directory: frontend
-        run: npm ci || npm install
+        run: yarn install --frozen-lockfile || yarn install
 
       - name: Build frontend
         working-directory: frontend
         env:
           CI: false
           NODE_ENV: production
-        run: npm run build
+        run: yarn build
 
       # --- Prep backend (install prod deps to ship node_modules) ---
       - name: Install backend prod deps
         working-directory: backend
-        run: npm ci --omit=dev || npm install --omit=dev
+        run: yarn install --production --frozen-lockfile || yarn install --production
 
       # --- SSH / rsync setup ---
       - name: Configure SSH

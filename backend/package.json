@@ -1,10 +1,10 @@
 {
-  "name": "task-manager-backend",
+  "name": "debateapp-backend",
   "version": "1.0.0",
-  "description": "Backend for Task Manager App",
+  "description": "DebateApp backend — Express REST auth + Apollo GraphQL debate domain",
   "main": "server.js",
   "scripts": {
-    "test": "mocha",
+    "test": "mocha --exit",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "prod": "node server.js"
@@ -26,6 +26,6 @@
     "nodemon": "^2.0.15",
     "sinon": "^19.0.2"
   },
-  "author": "Task Manager Team",
+  "author": "Lucas Cullen (n7641052)",
   "license": "ISC"
 }

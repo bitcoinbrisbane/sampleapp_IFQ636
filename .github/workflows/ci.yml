@@ -18,22 +18,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: yarn
+          cache-dependency-path: |
+            backend/yarn.lock
+            frontend/yarn.lock
 
       - name: Install backend dependencies
         working-directory: backend
-        run: npm ci || npm install
+        run: yarn install --frozen-lockfile || yarn install
 
       - name: Run backend tests
         working-directory: backend
-        # Don't fail the build if no tests exist yet; fail on real test failures.
-        run: npm test --if-present
+        # Run tests if a test/ dir exists; don't fail the build when there are none yet.
+        run: |
+          if [ -d test ]; then yarn test; else echo "No test/ dir — skipping"; fi
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci || npm install
+        run: yarn install --frozen-lockfile || yarn install
 
       - name: Build frontend (production)
         working-directory: frontend
         env:
           CI: false # treat CRA warnings as warnings, not errors
-        run: npm run build
+        run: yarn build
