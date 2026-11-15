@@ -32,8 +32,13 @@ to declare a winner.
 ### Architecture
 
 - **Stack**: MERN (Node.js + Express backend, React frontend, MongoDB).
+- **API (hybrid)**: authentication over **REST** (`/api/auth/*`, starter, unchanged);
+  the debate domain over **GraphQL** (`/graphql`, Apollo Server 5 on Express). CRUD
+  maps to named GraphQL operations — Create (`createDebate`, `joinDebate`,
+  `submitArgument`, `castVote`), Read (`debate`, `debates`), Update (`joinDebate`,
+  `submitArgument`, `castVote`, `closeDebate`), Delete (`deleteDebate`).
 - **Deploy model**: PM2 (Node backend) + Nginx (serves the React build and
-  reverse-proxies `/api` → Node).
+  reverse-proxies `/api` and `/graphql` → Node).
 - **Database**: MongoDB installed **on the EC2 instance** (`mongodb://localhost:27017/debateapp`).
 - **CD**: GitHub Actions — on push to `main`, SSH into EC2, pull, build, `pm2 reload`.
 
