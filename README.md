@@ -26,8 +26,10 @@ In this assignment you will complete the following tasks:
 
 Structured, asynchronous, time-boxed online debates built on this MERN starter.
 Members of the public post a motion, an opponent joins, each side argues in fixed
-3-round turns under server-enforced time-boxes, and after close the audience votes
-to declare a winner.
+3-round turns under server-enforced time-boxes, and after close the debate is
+resolved by audience vote. The create → join → argue → close workflow is
+implemented end-to-end; the vote tally is served by the backend (`castVote`,
+`voteTally`) but the voting UI is not yet built — see **Known limitations** below.
 
 ### Architecture
 
@@ -176,3 +178,15 @@ App directory: `/var/www/debateapp` (owned by `ubuntu`).
 
 ---
 
+
+## Known limitations
+
+- **Voting UI not built.** The backend supports voting (`castVote` mutation,
+  `voteTally`/`winner` on the `debate` query), but there is no front-end screen to
+  cast a vote yet, so the audience-vote resolution is not reachable from the UI.
+- **Debate list refresh after login (SCRUM-55).** The debates list does not always
+  refresh immediately after login; a manual page reload currently shows the latest state.
+- **In-memory turn deadlines.** Per-turn time-box deadlines are tracked in memory, so a
+  backend restart can lose the in-flight deadline state for debates that are mid-round.
+- **Single debate format.** Only the fixed 3-round format (opening / rebuttal / closing)
+  is supported; alternative formats and round counts are out of scope for this MVP.
